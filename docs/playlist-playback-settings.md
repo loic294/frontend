@@ -1,10 +1,12 @@
 # Podcast/Audiobook playlist playback
 
-For the official Home Assistant DEV app with both fork branches, desktop and
+For the official Home Assistant DEV app with the fork server, desktop and
 Android build, follow the
 [test deployment guide](https://github.com/loic294/server/blob/playlist-playback-test/docs/test-deployment.md).
-Set both `server_repo` and `frontend_repo`; no custom Docker image or separate
-web hosting deployment is required. Connect to the DEV server on port 8195,
+Set `server_repo` as documented and leave `frontend_repo` empty. The server pins
+our prebuilt frontend wheel, published by **Publish playlist test frontend** in
+GitHub Actions, so Home Assistant does not compile JavaScript. No custom Docker
+image or separate web hosting deployment is required. Connect on port 8195,
 not the normal server on port 8095.
 
 On a playlist, open the existing three-dot/context menu and choose

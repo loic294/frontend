@@ -1,0 +1,82 @@
+name: Publish playlist test frontend
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  NODE_OPTIONS: --max_old_space_size=6144
+  CI: true
+
+jobs:
+  publish:
+    if: github.repository == 'loic294/frontend' && github.ref == 'refs/heads/playlist-playback-test'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - uses: ./.github/actions/setup-frontend
+        with:
+          node-version: "24"
+      - name: Version the test package
+        run: |
+          python - <<'PY'
+          import os
+          import re
+          import tomllib
+          from pathlib import Path
+
+          path = Path("pyproject.toml")
+          text = path.read_text()
+          assert tomllib.loads(text)["project"]["version"] == "0.0.0"
+          version = f"2.17.347+playlist.{os.environ['GITHUB_RUN_ID']}.{os.environ['GITHUB_RUN_ATTEMPT']}"
+          text, count = re.subn(r'(?m)^version\s*=\s*"0\.0\.0"\s*$', f'version = "{version}"', text)
+          assert count == 1
+          path.write_text(text)
+          PY
+          python -m pip install build
+      - name: Test, lint and build the frontend off-device
+        run: |
+          pnpm test:run
+          pnpm lint:check
+          pnpm build
+          python -m build
+          .github/scripts/verify-python-package.sh
+      - name: Verify the packaged playlist UI
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          wheels = list(Path("dist").glob("*.whl"))
+          assert len(wheels) == 1
+          with ZipFile(wheels[0]) as wheel:
+              assets = [name for name in wheel.namelist() if name.endswith(".js")]
+              assert any(
+                  b"music/playlists/playback_settings" in wheel.read(name)
+                  for name in assets
+              ), "Wheel is missing the modified playlist frontend"
+          PY
+          python -m venv "$RUNNER_TEMP/frontend-check"
+          "$RUNNER_TEMP/frontend-check/bin/pip" install --no-deps dist/*.whl
+          cd "$RUNNER_TEMP"
+          frontend-check/bin/python -c \
+            "from pathlib import Path; from music_assistant_frontend import where; assert (Path(where()) / 'index.html').is_file()"
+      - name: Publish a versioned frontend wheel
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="playlist-ui-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          (cd dist && sha256sum *.whl *.tar.gz > SHA256SUMS)
+          gh release create "$tag" dist/*.whl dist/*.tar.gz dist/SHA256SUMS \
+            --target "$GITHUB_SHA" --prerelease \
+            --title "Playlist test frontend $tag" \
+            --notes "Built and tested from $GITHUB_SHA for the official DEV app. Install the wheel through the server dependency; leave frontend_repo empty to avoid building on Home Assistant."
+          echo "### Prebuilt frontend: $tag" >> "$GITHUB_STEP_SUMMARY"
+          cat dist/SHA256SUMS >> "$GITHUB_STEP_SUMMARY"
