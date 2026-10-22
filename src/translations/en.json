@@ -1,4 +1,21 @@
 {
+    "playlist_playback": {
+        "title": "Podcast/Audiobook settings",
+        "spoken_word": "Resume when playing playlist",
+        "spoken_word_help": "When you press Play on this playlist, start with the first item in the selected sort order and resume each episode or audiobook where you left off. Uses fresh provider progress when available, otherwise Music Assistant's saved progress.",
+        "help": "Choose how episodes and audiobooks play from this playlist. Existing playlists are unchanged until enabled.",
+        "remove_finished": "Remove finished items",
+        "remove_help": "Optionally remove items from the source playlist only when playback ends naturally, never when skipped or stopped.",
+        "show_remaining_time": "Show remaining time",
+        "show_remaining_time_help": "Show the time left in each episode or audiobook instead of its full duration, based on your saved listening progress.",
+        "time_left": "{time} left",
+        "remaining_time": "Remaining time",
+        "remove_unavailable": "Removing finished items requires an editable, non-dynamic playlist.",
+        "dynamic_unavailable": "Playlist resume is unavailable for dynamic playlists.",
+        "load_error": "Could not load Podcast/Audiobook settings. The playlist must be in your library and the server must support these settings.",
+        "save_error": "Could not save Podcast/Audiobook settings. Check your permissions and server support, then try again.",
+        "saved": "Podcast/Audiobook settings saved"
+    },
     "about_episode": "About this episode",
     "about_podcast": "About this podcast",
     "actions": "Actions",

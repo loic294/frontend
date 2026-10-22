@@ -1138,6 +1138,12 @@ export interface Track extends MediaItem {
   audio_metadata?: AudioMetadata | null;
 }
 
+export interface PlaylistPlaybackSettings {
+  spoken_word: boolean;
+  remove_finished: boolean;
+  show_remaining_time: boolean;
+}
+
 export interface Playlist extends MediaItem {
   owner: string;
   is_editable: boolean;

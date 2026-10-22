@@ -1,7 +1,35 @@
 import { $t } from "@/plugins/i18n";
+import {
+  MediaType,
+  type MediaItemTypeOrItemMapping,
+} from "@/plugins/api/interfaces";
+import { formatDuration } from "@/helpers/utils";
 
 const SECONDS_PER_MINUTE = 60;
 const MINUTES_PER_HOUR = 60;
+const MILLISECONDS_PER_SECOND = 1000;
+
+export function formatMediaItemDuration(
+  item: MediaItemTypeOrItemMapping,
+  showRemainingTime = false,
+): string | undefined {
+  if (!("duration" in item) || !item.duration) return undefined;
+  if (
+    !showRemainingTime ||
+    ![MediaType.PODCAST_EPISODE, MediaType.AUDIOBOOK].includes(item.media_type)
+  ) {
+    return formatDuration(item.duration);
+  }
+  const position =
+    "resume_position_ms" in item ? (item.resume_position_ms ?? 0) : 0;
+  const remaining = Math.max(
+    0,
+    item.duration - Math.max(0, position) / MILLISECONDS_PER_SECOND,
+  );
+  return $t("playlist_playback.time_left", {
+    time: formatDuration(remaining),
+  });
+}
 
 /**
  * A total playing time in words, rounded to the minute: "11 h 44 min",

@@ -5,6 +5,7 @@ import {
 } from "@/layouts/default/ItemContextMenu.vue";
 import type { ContextMenuDialogEvent } from "@/plugins/eventbus";
 import {
+  MediaType,
   QueueOption,
   SortDirection,
   SortField,
@@ -12,6 +13,7 @@ import {
 import { authManager } from "@/plugins/auth";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { album } from "../fixtures/album";
+import { itemMapping } from "../fixtures/itemMapping";
 import { audioSource } from "../fixtures/audioSource";
 import { podcast } from "../fixtures/podcast";
 import { playlist } from "../fixtures/playlist";
@@ -148,6 +150,34 @@ describe("showPlayMenuForMediaItem", () => {
       "play_from_here_to_latest",
     );
   });
+
+  it.each([
+    podcastEpisode({ item_id: "ep2" }),
+    itemMapping({ item_id: "book2", media_type: MediaType.AUDIOBOOK }),
+  ])(
+    "offers to continue a playlist from its $media_type row in the displayed order",
+    async (item) => {
+      const parent = playlist({ item_id: "pl1" });
+      await showPlayMenuForMediaItem(
+        item,
+        parent,
+        0,
+        0,
+        undefined,
+        SortField.NAME,
+        SortDirection.DESC,
+      );
+
+      const first = emittedItems()[0];
+      expect(first.label).toBe("play_playlist_from");
+      first.action?.();
+      expect(apiMock.playMedia).toHaveBeenCalledWith(parent.uri, undefined, {
+        start_item: item.item_id,
+        sort_field: SortField.NAME,
+        sort_direction: SortDirection.DESC,
+      });
+    },
+  );
 });
 
 describe("playback in the order an album or playlist page lists its tracks", () => {

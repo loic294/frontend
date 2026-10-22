@@ -130,11 +130,9 @@
 
       <div
         v-else-if="column === 'duration'"
-        class="text-right text-sm tabular-nums text-muted-foreground"
+        class="text-right text-sm whitespace-nowrap tabular-nums text-muted-foreground"
       >
-        <template v-if="'duration' in item && item.duration">
-          {{ formatDuration(item.duration) }}
-        </template>
+        {{ durationLabel }}
       </div>
 
       <div v-else-if="column === 'play'" class="flex justify-center">
@@ -182,7 +180,7 @@ import {
   handlePlayBtnClick,
 } from "@/helpers/media_item_actions";
 import { camelotColor } from "@/helpers/camelot";
-import { formatDuration } from "@/helpers/utils";
+import { formatMediaItemDuration } from "@/helpers/duration";
 import {
   Scope,
   type MediaItemType,
@@ -216,6 +214,7 @@ export interface Props {
   sortBy?: string;
   sortField?: SortField;
   sortDirection?: SortDirection;
+  showRemainingTime?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -227,6 +226,7 @@ const props = withDefaults(defineProps<Props>(), {
   sortBy: undefined,
   sortField: undefined,
   sortDirection: undefined,
+  showRemainingTime: false,
 });
 
 const emit = defineEmits<{
@@ -235,7 +235,12 @@ const emit = defineEmits<{
 
 const isTouch = useMediaQuery("(hover: none)");
 
-const gridTemplate = computed(() => trackTableGridTemplate(props.columns));
+const gridTemplate = computed(() =>
+  trackTableGridTemplate(props.columns, props.showRemainingTime),
+);
+const durationLabel = computed(() =>
+  formatMediaItemDuration(props.item, props.showRemainingTime),
+);
 
 const position = computed(
   () => ("position" in props.item && props.item.position) || props.index + 1,

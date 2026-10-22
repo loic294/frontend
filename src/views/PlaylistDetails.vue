@@ -45,6 +45,9 @@
             :load-paged-data="loadPlaylistTracks"
             :update-available="updateAvailable"
             :track-table="true"
+            :show-remaining-time="
+              playbackSettings?.show_remaining_time ?? false
+            "
             :title="$t('tracks')"
             :allow-key-hooks="true"
             :path="`playlist.${props.itemId}.${props.provider}`"
@@ -144,6 +147,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useDetailItemUpdates } from "@/composables/useDetailItemUpdates";
+import { usePlaylistPlaybackSettings } from "@/composables/usePlaylistPlaybackSettings";
 import { usePlaylistTracks } from "@/composables/usePlaylistTracks";
 import { canSharePlaylist } from "@/helpers/playlist_access";
 import EditSmartPlaylistDialog from "@/layouts/default/EditSmartPlaylistDialog.vue";
@@ -158,7 +162,8 @@ import { authManager } from "@/plugins/auth";
 import { eventbus } from "@/plugins/eventbus";
 import { $t } from "@/plugins/i18n";
 import { store } from "@/plugins/store";
-import { computed, ref, watch } from "vue";
+import { computed, onScopeDispose, ref, watch } from "vue";
+import { toast } from "vue-sonner";
 
 export interface Props {
   itemId: string;
@@ -167,6 +172,21 @@ export interface Props {
 const props = defineProps<Props>();
 const updateAvailable = ref(false);
 const itemDetails = ref<Playlist>();
+const {
+  settings: playbackSettings,
+  load: loadPlaybackSettings,
+  reset: resetPlaybackSettings,
+} = usePlaylistPlaybackSettings();
+watch(itemDetails, (playlist) => {
+  if (!playlist || playlist.provider !== "library" || playlist.is_dynamic) {
+    resetPlaybackSettings();
+    return;
+  }
+  loadPlaybackSettings(playlist).catch(() => {
+    toast.error($t("playlist_playback.load_error"));
+  });
+});
+onScopeDispose(resetPlaybackSettings);
 const smartRules = ref<SmartPlaylistRules | null>(null);
 const showEditDialog = ref(false);
 const showRulesDialog = ref(false);

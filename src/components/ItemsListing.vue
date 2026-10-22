@@ -122,6 +122,7 @@
         v-if="showTrackTable && (loadPending || pagedItems.length)"
         :columns="trackColumns"
         :enabled="enabledTrackColumns"
+        :show-remaining-time="showRemainingTime"
         @update:enabled="setEnabledTrackColumns"
       />
       <!-- Skeleton loading states -->
@@ -265,6 +266,7 @@
               :item="item"
               :index="index"
               :columns="trackColumns"
+              :show-remaining-time="showRemainingTime"
               :show-checkboxes="showCheckboxes"
               :is-selected="isSelected(item)"
               :is-available="itemIsAvailable(item)"
@@ -283,6 +285,7 @@
               :show-track-number="showTrackNumber"
               :show-disc-number="showTrackNumber"
               :show-duration="showDuration"
+              :show-remaining-time="showRemainingTime"
               :show-favorite="showFavorite ?? showFavoritesOnlyFilter"
               :show-menu="item.is_playable || isMusicBrainzItem(item)"
               :show-provider="showProvider"
@@ -499,6 +502,7 @@ export interface Props {
   showFavoritesOnlyFilter?: boolean;
   showFavorite?: boolean;
   showDuration?: boolean;
+  showRemainingTime?: boolean;
   parentItem?: MediaItemType;
   showAlbumArtistsOnlyFilter?: boolean;
   showSearchButton?: boolean;
@@ -568,6 +572,7 @@ const props = withDefaults(defineProps<Props>(), {
   showFavoritesOnlyFilter: true,
   showFavorite: undefined,
   showDuration: true,
+  showRemainingTime: false,
   parentItem: undefined,
   hideOnEmpty: false,
   emptyMessage: undefined,

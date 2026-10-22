@@ -256,13 +256,12 @@
       <span
         v-if="
           showDuration &&
-          'duration' in item &&
-          item.duration &&
-          !$vuetify.display.mobile
+          durationLabel &&
+          (!$vuetify.display.mobile || showRemainingTime)
         "
         class="track-duration"
       >
-        {{ formatDuration(item.duration) }}
+        {{ durationLabel }}
       </span>
 
       <!-- provider icon -->
@@ -333,13 +332,13 @@ import ListItem from "@/components/ListItem.vue";
 import NowPlayingBadge from "@/components/NowPlayingBadge.vue";
 import { podcastEpisodeNumber } from "@/components/podcast/podcastEpisodeData";
 import { canHoldFavorite } from "@/helpers/favorites";
+import { formatMediaItemDuration } from "@/helpers/duration";
 import {
   handleMediaItemClick,
   handleMenuBtnClick,
   handlePlayBtnClick,
 } from "@/helpers/media_item_actions";
 import {
-  formatDuration,
   getArtistsString,
   getAuthorsNarratorsArray,
   truncateString,
@@ -385,6 +384,7 @@ export interface Props {
   showMenu?: boolean;
   showFavorite?: boolean;
   showDuration?: boolean;
+  showRemainingTime?: boolean;
   isSelected: boolean;
   isDisabled?: boolean;
   isAvailable?: boolean;
@@ -417,6 +417,7 @@ const compProps = withDefaults(defineProps<Props>(), {
   showMenu: true,
   showFavorite: false,
   showDuration: true,
+  showRemainingTime: false,
   showCheckboxes: false,
   disablePlayButton: false,
   isDisabled: false,
@@ -428,6 +429,9 @@ const compProps = withDefaults(defineProps<Props>(), {
 });
 
 // computed properties
+const durationLabel = computed(() =>
+  formatMediaItemDuration(compProps.item, compProps.showRemainingTime),
+);
 // a release only MusicBrainz knows: muted rather than shown as unavailable,
 // since it can be opened and added to the library
 const notInLibrary = computed(() => isMusicBrainzItem(compProps.item));

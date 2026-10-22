@@ -91,4 +91,10 @@ describe("trackTableGridTemplate", () => {
       "minmax(0,4fr) 3.5rem 2.5rem",
     );
   });
+
+  it("reserves matching header/row space for the remaining-time suffix", () => {
+    expect(trackTableGridTemplate(["title", "duration", "menu"], true)).toBe(
+      "minmax(0,4fr) 7.5rem 2.5rem",
+    );
+  });
 });

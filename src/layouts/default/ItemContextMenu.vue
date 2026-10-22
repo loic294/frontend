@@ -410,6 +410,7 @@ import {
   PlusCircle,
   RefreshCw,
   RotateCcw,
+  Settings,
   Share2,
   Shuffle,
   SkipForward,
@@ -535,6 +536,23 @@ export const showPlayMenuForMediaItem = async function (
     parentItem.uri != firstItem.uri
   ) {
     playMenuItems.push(playPodcastFromHereMenuItem(firstItem, parentItem));
+  }
+  if (
+    playableItems.length == 1 &&
+    parentItem?.media_type == MediaType.PLAYLIST &&
+    [MediaType.PODCAST_EPISODE, MediaType.AUDIOBOOK].includes(
+      firstItem.media_type,
+    )
+  ) {
+    playMenuItems.push(
+      playPlaylistFromHereMenuItem(
+        firstItem,
+        parentItem,
+        tracksSortBy,
+        tracksSortField,
+        tracksSortDirection,
+      ),
+    );
   }
   const defaultEnqueueOption = await getDefaultEnqueueOption(firstItem);
   if (isAudioSource(firstItem)) {
@@ -1282,13 +1300,27 @@ export const getContextMenuItems = async function (
       });
     }
   }
-  // share playlist (a Music Assistant playlist the user owns or manages)
+  // playlist settings and sharing (for the owner or a library manager)
   if (
     items.length === 1 &&
     items[0].media_type === MediaType.PLAYLIST &&
     "provider_mappings" in items[0]
   ) {
     const playlist = items[0] as Playlist;
+    if (
+      canEditLibrary &&
+      authManager.hasScope(Scope.LIBRARY_READ) &&
+      canManagePlaylist(playlist, store.currentUser, managesLibrary)
+    ) {
+      contextMenuItems.push({
+        label: "playlist_playback.title",
+        labelArgs: [],
+        action: () => {
+          eventbus.emit("playlistPlaybackSettingsDialog", { playlist });
+        },
+        icon: Settings,
+      });
+    }
     if (
       canEditLibrary &&
       canSharePlaylist(playlist, store.currentUser, managesLibrary)
@@ -1489,22 +1521,15 @@ export const getPlaybackContextMenuItems = async function (
   ) {
     // Play from here (playlist track)
     if (parentItem.media_type == MediaType.PLAYLIST) {
-      playMenuItems.push({
-        label: "play_playlist_from",
-        action: () => {
-          api.playMedia(parentItem.uri, undefined, {
-            start_item: playableItems[0].item_id,
-            ...(sortField
-              ? { sort_field: sortField, sort_direction: sortDirection }
-              : sortBy
-                ? { sort_by: sortBy }
-                : {}),
-          });
-        },
-        icon: PlayCircle,
-        labelArgs: [],
-        disabled: !store.activePlayer,
-      });
+      playMenuItems.push(
+        playPlaylistFromHereMenuItem(
+          firstItem,
+          parentItem,
+          sortBy,
+          sortField,
+          sortDirection,
+        ),
+      );
     }
     // Play from here (album track)
     if (parentItem.media_type == MediaType.ALBUM) {
@@ -1729,6 +1754,31 @@ const startAudioSourceMenuItem = function (
         items.map((x) => x.uri),
         defaultEnqueueOption,
       );
+    },
+    icon: PlayCircle,
+    labelArgs: [],
+    disabled: !store.activePlayer,
+  };
+};
+
+const playPlaylistFromHereMenuItem = function (
+  item: MediaItemTypeOrItemMapping,
+  playlist: MediaItemType,
+  sortBy?: string,
+  sortField?: SortField,
+  sortDirection?: SortDirection,
+): ContextMenuItem {
+  return {
+    label: "play_playlist_from",
+    action: () => {
+      api.playMedia(playlist.uri, undefined, {
+        start_item: item.item_id,
+        ...(sortField
+          ? { sort_field: sortField, sort_direction: sortDirection }
+          : sortBy
+            ? { sort_by: sortBy }
+            : {}),
+      });
     },
     icon: PlayCircle,
     labelArgs: [],

@@ -35,10 +35,10 @@
       <span
         v-else-if="column === 'duration'"
         class="flex justify-end"
-        :title="$t('track_table.duration')"
+        :title="durationLabel"
       >
         <Clock3 class="size-4" aria-hidden="true" />
-        <span class="sr-only">{{ $t("track_table.duration") }}</span>
+        <span class="sr-only">{{ durationLabel }}</span>
       </span>
       <span v-else-if="column === 'menu'" class="flex justify-center">
         <!-- not modal, so the page still scrolls when the table sits low on screen -->
@@ -107,6 +107,7 @@ export interface Props {
   columns: TrackColumn[];
   // the columns the user switched on, shown or not
   enabled: OptionalTrackColumn[];
+  showRemainingTime?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -115,7 +116,16 @@ const emit = defineEmits<{
   "update:enabled": [columns: OptionalTrackColumn[]];
 }>();
 
-const gridTemplate = computed(() => trackTableGridTemplate(props.columns));
+const gridTemplate = computed(() =>
+  trackTableGridTemplate(props.columns, props.showRemainingTime),
+);
+const durationLabel = computed(() =>
+  $t(
+    props.showRemainingTime
+      ? "playlist_playback.remaining_time"
+      : "track_table.duration",
+  ),
+);
 
 const OPTION_LABEL_KEYS: Record<OptionalTrackColumn, string> = {
   album: "album",

@@ -64,7 +64,7 @@ vi.mock("@/plugins/web_player", () => ({
 
 vi.mock("@/layouts/default/ItemContextMenu.vue", () => ({
   showContextMenuForMediaItem: vi.fn(),
-  showPlayMenuForMediaItem: vi.fn(),
+  showPlayMenuForMediaItem: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/plugins/api/helpers", () => ({
@@ -86,12 +86,17 @@ import {
   handleMediaItemClick,
   handlePlayBtnClick,
 } from "@/helpers/media_item_actions";
-import { showContextMenuForMediaItem } from "@/layouts/default/ItemContextMenu.vue";
+import {
+  showContextMenuForMediaItem,
+  showPlayMenuForMediaItem,
+} from "@/layouts/default/ItemContextMenu.vue";
+import { MediaType, SortDirection, SortField } from "@/plugins/api/interfaces";
 import { authManager } from "@/plugins/auth";
 import { album } from "../fixtures/album";
 import { artist } from "../fixtures/artist";
 import { audioSource } from "../fixtures/audioSource";
 import { genre } from "../fixtures/genre";
+import { itemMapping } from "../fixtures/itemMapping";
 import { playlist } from "../fixtures/playlist";
 import { podcastEpisode } from "../fixtures/podcastEpisode";
 import { radio } from "../fixtures/radio";
@@ -109,6 +114,7 @@ beforeEach(() => {
   mockRouterPush.mockReset();
   mockItemIsAvailable.mockReset().mockReturnValue(true);
   vi.mocked(showContextMenuForMediaItem).mockClear();
+  vi.mocked(showPlayMenuForMediaItem).mockClear();
   vi.mocked(authManager.hasScope).mockImplementation(
     scopeChecker(BUILTIN_ROLE_SCOPES.user),
   );
@@ -170,6 +176,75 @@ describe("handlePlayBtnClick honours default_play_action_*_track", () => {
       start_item: playedTrack.item_id,
       sort_by: undefined,
     });
+  });
+});
+
+describe("spoken-word playback from a playlist row", () => {
+  const spokenItems = [
+    podcastEpisode({ item_id: "ep2" }),
+    itemMapping({ item_id: "book2", media_type: MediaType.AUDIOBOOK }),
+  ];
+
+  it.each(spokenItems)(
+    "keeps the playlist and displayed sort when playing a $media_type row",
+    async (item) => {
+      mockGetCoreConfigValue.mockResolvedValue("play_track");
+
+      await handlePlayBtnClick(
+        item,
+        0,
+        0,
+        parentPlaylist,
+        false,
+        undefined,
+        undefined,
+        SortField.NAME,
+        SortDirection.DESC,
+      );
+
+      expect(mockPlayMedia).toHaveBeenCalledWith(
+        parentPlaylist.uri,
+        undefined,
+        {
+          start_item: item.item_id,
+          sort_field: SortField.NAME,
+          sort_direction: SortDirection.DESC,
+        },
+      );
+      expect(mockGetCoreConfigValue).not.toHaveBeenCalled();
+    },
+  );
+
+  it("passes the row's sort order to its play menu", async () => {
+    const item = podcastEpisode({ item_id: "ep2" });
+    await handlePlayBtnClick(
+      item,
+      10,
+      20,
+      parentPlaylist,
+      true,
+      undefined,
+      undefined,
+      SortField.NAME,
+      SortDirection.DESC,
+    );
+
+    expect(showPlayMenuForMediaItem).toHaveBeenCalledWith(
+      item,
+      parentPlaylist,
+      10,
+      20,
+      undefined,
+      SortField.NAME,
+      SortDirection.DESC,
+    );
+    expect(mockPlayMedia).not.toHaveBeenCalled();
+  });
+
+  it("keeps an episode played outside a playlist standalone", async () => {
+    const episode = podcastEpisode();
+    await handlePlayBtnClick(episode, 0, 0);
+    expect(mockPlayMedia).toHaveBeenCalledWith(episode);
   });
 });
 

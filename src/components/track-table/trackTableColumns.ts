@@ -108,8 +108,15 @@ export function visibleTrackColumns(
  */
 export function trackTableGridTemplate(
   columns: readonly TrackColumn[],
+  showRemainingTime = false,
 ): string {
-  return columns.map((column) => COLUMN_WIDTH[column]).join(" ");
+  return columns
+    .map((column) =>
+      column === "duration" && showRemainingTime
+        ? "7.5rem"
+        : COLUMN_WIDTH[column],
+    )
+    .join(" ");
 }
 
 function isOptional(column: TrackColumn): column is OptionalTrackColumn {

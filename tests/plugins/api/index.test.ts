@@ -1288,6 +1288,75 @@ describe("MusicAssistantApi error handling", () => {
     expect(mockToastError).not.toHaveBeenCalled();
   });
 
+  it("reads playlist playback settings with a string library ID", async () => {
+    const result = api.getPlaylistPlaybackSettings("42");
+    expect(transport.lastCommand.command).toBe(
+      "music/playlists/playback_settings",
+    );
+    expect(transport.lastCommand.args).toEqual({ item_id: "42" });
+    const settings = {
+      spoken_word: false,
+      remove_finished: false,
+      show_remaining_time: false,
+    };
+    transport.receive({
+      message_id: transport.lastCommand.message_id!,
+      result: settings,
+      partial: false,
+    });
+    await expect(result).resolves.toEqual(settings);
+  });
+
+  it("writes all playback settings and uses the server response", async () => {
+    const result = api.setPlaylistPlaybackSettings("42", {
+      spoken_word: true,
+      remove_finished: true,
+      show_remaining_time: true,
+    });
+    expect(transport.lastCommand.command).toBe(
+      "music/playlists/set_playback_settings",
+    );
+    expect(transport.lastCommand.args).toEqual({
+      item_id: "42",
+      spoken_word: true,
+      remove_finished: true,
+      show_remaining_time: true,
+    });
+    const settings = {
+      spoken_word: true,
+      remove_finished: false,
+      show_remaining_time: true,
+    };
+    transport.receive({
+      message_id: transport.lastCommand.message_id!,
+      result: settings,
+      partial: false,
+    });
+    await expect(result).resolves.toEqual(settings);
+  });
+
+  it.each(["read", "write"])(
+    "rejects unavailable playback settings %s endpoints",
+    async (operation) => {
+      const result =
+        operation === "read"
+          ? api.getPlaylistPlaybackSettings("42")
+          : api.setPlaylistPlaybackSettings("42", {
+              spoken_word: false,
+              remove_finished: false,
+              show_remaining_time: false,
+            });
+      const rejection = expect(result).rejects.toMatchObject({
+        message: "Invalid command",
+      });
+      transport.receive(
+        createErrorResult(transport.lastCommand, "Invalid command"),
+      );
+      await rejection;
+      expect(mockToastError).not.toHaveBeenCalled();
+    },
+  );
+
   it("rejects in-flight commands when the connection closes", async () => {
     const command = api.sendCommand("test/pending");
     const rejection =

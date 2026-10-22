@@ -24,9 +24,11 @@ import { user } from "../fixtures/user";
 const { apiMock, authMock, storeMock, eventbusMock } = vi.hoisted(() => ({
   apiMock: {
     getPlaylist: vi.fn<MusicAssistantApi["getPlaylist"]>(),
+    getPlaylistPlaybackSettings:
+      vi.fn<MusicAssistantApi["getPlaylistPlaybackSettings"]>(),
     getPlaylistTracks: vi.fn<MusicAssistantApi["getPlaylistTracks"]>(),
     getSmartPlaylistRules: vi.fn<MusicAssistantApi["getSmartPlaylistRules"]>(),
-    subscribe: vi.fn(() => () => {}),
+    subscribe: vi.fn<MusicAssistantApi["subscribe"]>(() => () => {}),
   },
   authMock: { hasScope: vi.fn<(scope: Scope) => boolean>() },
   storeMock: { currentUser: undefined as User | undefined },
@@ -71,7 +73,7 @@ vi.mock("@/components/playlist/PlaylistFeaturedArtists.vue", () => ({
 vi.mock("@/components/ItemsListing.vue", () => ({
   default: {
     name: "ItemsListing",
-    props: ["loadPagedData", "sortListing"],
+    props: ["loadPagedData", "sortListing", "showRemainingTime"],
     // the order the listing shows its tracks in
     data: () => ({ sortField: "artist_name", sortDirection: "desc" }),
     template: "<div />",
@@ -124,6 +126,11 @@ describe("PlaylistDetails", () => {
     vi.clearAllMocks();
     apiMock.subscribe.mockReturnValue(() => {});
     apiMock.getPlaylistTracks.mockResolvedValue([]);
+    apiMock.getPlaylistPlaybackSettings.mockResolvedValue({
+      spoken_word: false,
+      remove_finished: false,
+      show_remaining_time: false,
+    });
     apiMock.getSmartPlaylistRules.mockResolvedValue(rules);
     // a library manager may edit the rules and share the playlist
     authMock.hasScope.mockImplementation(
@@ -162,6 +169,62 @@ describe("PlaylistDetails", () => {
     const hero = wrapper.findComponent({ name: "PlaylistHero" });
     expect(hero.props("tracksSortField")).toBe("artist_name");
     expect(hero.props("tracksSortDirection")).toBe("desc");
+  });
+
+  it("passes the persisted remaining-time preference to the playlist listing", async () => {
+    apiMock.getPlaylistTracks.mockResolvedValue([track({ duration: 3600 })]);
+    apiMock.getPlaylistPlaybackSettings.mockResolvedValue({
+      spoken_word: true,
+      remove_finished: true,
+      show_remaining_time: true,
+    });
+    const item = playlistOf("builtin");
+    const wrapper = await mountDetails(item);
+    expect(apiMock.getPlaylistPlaybackSettings).toHaveBeenCalledWith(
+      item.item_id,
+    );
+    expect(
+      wrapper
+        .findComponent({ name: "ItemsListing" })
+        .props("showRemainingTime"),
+    ).toBe(true);
+    expect(
+      wrapper.findComponent({ name: "PlaylistHero" }).props("duration"),
+    ).toBe(3600);
+  });
+
+  it("reloads the preference when settings are saved while the page is open", async () => {
+    const item = playlistOf("builtin");
+    const wrapper = await mountDetails(item);
+    expect(
+      wrapper
+        .findComponent({ name: "ItemsListing" })
+        .props("showRemainingTime"),
+    ).toBe(false);
+    apiMock.getPlaylistPlaybackSettings.mockResolvedValue({
+      spoken_word: false,
+      remove_finished: false,
+      show_remaining_time: true,
+    });
+    const handler = apiMock.subscribe.mock.calls.find(
+      ([type]) => type === EventType.MEDIA_ITEM_UPDATED,
+    )?.[1] as (evt: EventMessage) => void;
+    handler({
+      event: EventType.MEDIA_ITEM_UPDATED,
+      object_id: item.uri,
+      data: item,
+    });
+    await flushPromises();
+    expect(
+      wrapper
+        .findComponent({ name: "ItemsListing" })
+        .props("showRemainingTime"),
+    ).toBe(true);
+  });
+
+  it("does not load library-only settings for a playlist outside the library", async () => {
+    await mountDetails(playlist({ provider: "spotify" }));
+    expect(apiMock.getPlaylistPlaybackSettings).not.toHaveBeenCalled();
   });
 
   it("loads playlist tracks through the server-paged listing API", async () => {

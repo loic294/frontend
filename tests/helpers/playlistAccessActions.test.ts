@@ -167,6 +167,47 @@ describe("share playlist context menu action", () => {
   });
 });
 
+describe("playlist playback settings context menu action", () => {
+  const settingsAction = (items: ContextMenuItem[]) =>
+    items.find((item) => item.label === "playlist_playback.title");
+
+  it("opens settings for the owner even on non-editable playlists", async () => {
+    const item = { ...maPlaylist("me"), is_editable: false };
+    settingsAction(await getContextMenuItems([item]))?.action?.();
+    expect(mockEventbusEmit).toHaveBeenCalledWith(
+      "playlistPlaybackSettingsDialog",
+      { playlist: item },
+    );
+  });
+
+  it("allows library managers but not other users or collaborators", async () => {
+    const item = maPlaylist("other");
+    item.access!.collaborative = true;
+    expect(settingsAction(await getContextMenuItems([item]))).toBeUndefined();
+    authMock.hasScope.mockImplementation(
+      scopeChecker(BUILTIN_ROLE_SCOPES.admin),
+    );
+    expect(settingsAction(await getContextMenuItems([item]))).toBeDefined();
+  });
+
+  it("requires both library read and write scopes", async () => {
+    for (const missing of ["library.read", "library.write"]) {
+      authMock.hasScope.mockImplementation((scope) => scope !== missing);
+      expect(
+        settingsAction(await getContextMenuItems([maPlaylist("me")])),
+      ).toBeUndefined();
+    }
+  });
+
+  it("does not offer settings for a multiple selection", async () => {
+    expect(
+      settingsAction(
+        await getContextMenuItems([maPlaylist("me"), ownerlessPlaylist()]),
+      ),
+    ).toBeUndefined();
+  });
+});
+
 describe("edit and remove for a personal playlist", () => {
   const labels = (items: ContextMenuItem[]) => items.map((x) => x.label);
 

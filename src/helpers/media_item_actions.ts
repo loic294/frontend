@@ -41,9 +41,10 @@ const CLICK_ACTION_CONFIG_KEYS: Partial<Record<MediaType, string>> = {
  *
  * posX/posY anchor the play menu, which is shown instead of playing directly
  * when there is no usable active player or when forceMenu is set. sortBy is the
- * sort order of the list the item was played from. A track within an album or
- * playlist follows the configured play action: continue from that track, or
- * play only the track itself. tracksSortBy is the order the item's own tracks
+ * sort order of the list the item was played from. Episodes and audiobooks in a
+ * playlist continue from the chosen row. Music tracks follow the configured play
+ * action: continue from that track, or play only the track itself.
+ * tracksSortBy is the order the item's own tracks
  * are shown in, so an album or playlist played from its page plays that way.
  */
 export const handlePlayBtnClick = async function (
@@ -65,21 +66,27 @@ export const handlePlayBtnClick = async function (
     console.error("Play action failed:", err);
     toast.error($t("play_failed"));
   };
+  const isSpokenWordPlaylistRow =
+    parentItem?.media_type == MediaType.PLAYLIST &&
+    [MediaType.PODCAST_EPISODE, MediaType.AUDIOBOOK].includes(item.media_type);
   // we show the play menu for the item once (if playerTip has not been dismissed)
   if (!forceMenu && store.activePlayer?.available) {
     if (
-      item.media_type == MediaType.TRACK &&
-      (parentItem?.media_type == MediaType.PLAYLIST ||
-        parentItem?.media_type == MediaType.ALBUM) &&
-      store.activePlayerQueue
+      parentItem &&
+      (isSpokenWordPlaylistRow ||
+        (item.media_type == MediaType.TRACK &&
+          (parentItem.media_type == MediaType.PLAYLIST ||
+            parentItem.media_type == MediaType.ALBUM) &&
+          store.activePlayerQueue))
     ) {
-      // special case: playing a track within a playlist/album - continue from
-      // there, unless the user configured the play button to play just the track
-      const playAction = await readClickSetting(
-        parentItem.media_type == MediaType.PLAYLIST
-          ? "default_play_action_playlist_track"
-          : "default_play_action_album_track",
-      );
+      // Spoken-word rows keep the playlist context; music tracks retain their single-track option.
+      const playAction = isSpokenWordPlaylistRow
+        ? undefined
+        : await readClickSetting(
+            parentItem.media_type == MediaType.PLAYLIST
+              ? "default_play_action_playlist_track"
+              : "default_play_action_album_track",
+          );
       if (playAction != PLAY_ACTION_PLAY_TRACK) {
         api
           .playMedia(parentItem.uri, undefined, {
@@ -114,9 +121,9 @@ export const handlePlayBtnClick = async function (
     parentItem,
     posX,
     posY,
-    tracksSortBy,
-    tracksSortField,
-    tracksSortDirection,
+    isSpokenWordPlaylistRow ? sortBy : tracksSortBy,
+    isSpokenWordPlaylistRow ? sortField : tracksSortField,
+    isSpokenWordPlaylistRow ? sortDirection : tracksSortDirection,
   ).catch(onPlayError);
 };
 
